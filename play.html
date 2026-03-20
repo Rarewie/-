@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Clash Web - 20 Cards Update</title>
+    <style>
+        body { margin: 0; padding: 0; background-color: #111; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; touch-action: none; display: flex; justify-content: center; }
+        
+        #app { position: relative; width: 100vw; max-width: 450px; height: 100vh; background: #27ae60; overflow: hidden; box-shadow: 0 0 30px rgba(0,0,0,1); }
+        
+        /* МЕНЮ И ЭКРАНЫ */
+        .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at center, #2c3e50 0%, #0a0a0a 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; transition: 0.3s;}
+        .hidden { display: none !important; }
+
+        .logo-text { font-size: 3.5rem; font-weight: 900; text-transform: uppercase; background: linear-gradient(to right, #f1c40f, #e67e22); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; filter: drop-shadow(0 0 10px rgba(241, 196, 15, 0.5)); animation: pulse 2s infinite; text-align: center; line-height: 1.1;}
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        
+        .trophy-container { font-size: 1.8rem; font-weight: 900; color: #f1c40f; text-shadow: 0 4px 10px rgba(0,0,0,0.8); margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        
+        .btn { padding: 15px 25px; width: 260px; font-size: 1.1rem; margin: 8px; cursor: pointer; border: none; border-radius: 12px; background: linear-gradient(135deg, #3498db, #2980b9); color: white; font-weight: bold; box-shadow: 0 6px 0 #1c5980; transition: 0.1s; text-transform: uppercase; letter-spacing: 1px; }
+        .btn.pvp-btn { background: linear-gradient(135deg, #e74c3c, #c0392b); box-shadow: 0 6px 0 #922b21; }
+        .btn.deck-btn { background: linear-gradient(135deg, #9b59b6, #8e44ad); box-shadow: 0 6px 0 #5b2c6f; }
+        .btn:active { transform: translateY(6px); box-shadow: 0 0px 0 transparent; }
+        .btn:disabled { filter: grayscale(100%); opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: 0 6px 0 #333; }
+
+        select.diff-select { padding: 10px; width: 260px; margin-bottom: 10px; font-size: 1.1rem; border-radius: 10px; background: #34495e; color: white; border: 2px solid #2c3e50; font-weight: bold;}
+
+        /* ЭКРАН КОЛОДЫ */
+        #deck-screen { justify-content: flex-start; padding-top: 20px; overflow-y: auto; padding-bottom: 30px;}
+        #deck-screen::-webkit-scrollbar { width: 6px; }
+        #deck-screen::-webkit-scrollbar-thumb { background: #7f8c8d; border-radius: 3px; }
+        .deck-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 10px; width: 90%; }
+        .deck-slot { aspect-ratio: 3/4; background: #bdc3c7; border: 3px solid #555; border-radius: 8px; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 5px; cursor: pointer; }
+        .deck-slot.in-deck { border-color: #2ecc71; box-shadow: 0 0 15px #2ecc71; }
+        .deck-slot .lvl-badge { position: absolute; top: -5px; right: -5px; background: #f1c40f; color: black; border-radius: 5px; padding: 2px 5px; font-size: 12px; font-weight: bold; border: 2px solid #000; }
+        .deck-slot .cost-badge { position: absolute; top: -5px; left: -5px; background: #9b59b6; color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; border: 2px solid #000; }
+        .upgrade-btn { margin-top: 5px; font-size: 10px; padding: 5px; background: #f39c12; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;}
+        .upgrade-btn:disabled { background: #7f8c8d; }
+        .deck-title { margin-top: 10px; font-size: 11px; font-weight: 900; color: #111; text-align: center; line-height: 1;}
+
+        /* ИГРОВОЙ ИНТЕРФЕЙС */
+        canvas { display: block; width: 100%; height: 100%; }
+        .game-ui { position: absolute; width: 100%; background: rgba(20, 30, 40, 0.95); padding: 10px 5px 15px 5px; box-sizing: border-box; display: none; flex-direction: column; z-index: 50; }
+        #game-ui-p1 { bottom: 0; border-top: 3px solid #000; }
+        #game-ui-p2 { top: 0; border-bottom: 3px solid #000; transform: rotate(180deg); }
+        .cards-container { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 5px; padding-left: 5px; padding-right: 5px; }
+        .cards-container::-webkit-scrollbar { height: 6px; }
+        .cards-container::-webkit-scrollbar-thumb { background: #7f8c8d; border-radius: 3px; }
+        .card { min-width: 65px; flex: 0 0 auto; aspect-ratio: 3/4; background: linear-gradient(to bottom, #bdc3c7, #95a5a6); border: 3px solid #555; border-radius: 8px; position: relative; cursor: pointer; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 5px; font-size: 10px; font-weight: 800; color: #111; text-align: center; transition: 0.2s; }
+        .card.selected { border-color: #f1c40f; transform: translateY(-8px); box-shadow: 0 0 10px #f1c40f; }
+        .card.disabled { opacity: 0.4; filter: grayscale(100%); cursor: not-allowed; }
+        .card-cost { position: absolute; top: -5px; left: -5px; background: #9b59b6; border: 2px solid #222; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: bold; }
+        .card-lvl { position: absolute; top: -5px; right: -5px; background: #f1c40f; border: 1px solid #000; padding: 1px 3px; font-size: 10px; border-radius: 3px;}
+
+        .elixir-bar-container { width: 95%; height: 22px; background: #111; border-radius: 12px; margin: 0 auto; position: relative; border: 2px solid #000; overflow: hidden;}
+        .elixir-fill { height: 100%; background: linear-gradient(to right, #d35400, #f39c12); width: 50%; transition: width 0.1s linear; }
+        .elixir-text { position: absolute; width: 100%; text-align: center; top: 0; left: 0; line-height: 22px; font-size: 14px; font-weight: 900; color: white; text-shadow: 1px 1px 2px #000; }
+        
+        #toast { position: absolute; top: 30%; left: 50%; transform: translateX(-50%); background: rgba(231, 76, 60, 0.9); padding: 10px 20px; border-radius: 20px; font-weight: bold; display: none; z-index: 300; pointer-events: none;}
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div id="menu" class="screen">
+        <div class="logo-text">Clash<br>Simulator</div>
+        <div class="trophy-container">🏆 <span id="menu-trophies">0</span></div>
+        
+        <select id="bot-diff" class="diff-select">
+            <option value="easy">Сложность: Легко</option>
+            <option value="normal" selected>Сложность: Нормально</option>
+            <option value="hard">Сложность: Хардкор</option>
+        </select>
+        
+        <button class="btn" id="btn-bot" onclick="startGame('bot')">Сыграть с Ботом</button>
+        <button class="btn pvp-btn" id="btn-pvp" onclick="startGame('pvp')">2 Игрока (Локально)</button>
+        <button class="btn deck-btn" onclick="openDeckScreen()">Колода и Улучшения</button>
+        <div id="deck-warning" style="color: #e74c3c; font-size: 12px; margin-top: 5px; font-weight: bold; display: none;">Выбери ровно 6 карт в колоде!</div>
+    </div>
+
+    <div id="deck-screen" class="screen hidden">
+        <h2 style="margin-bottom: 5px;">Твоя Колода (<span id="deck-count">0</span>/6)</h2>
+        <div class="trophy-container" style="font-size: 1.2rem; margin-bottom: 10px;">🏆 <span id="deck-trophies">0</span></div>
+        <button class="btn" style="margin-bottom: 15px;" onclick="closeDeckScreen()">Назад в Меню</button>
+        <div class="deck-grid" id="deck-grid"></div>
+        <div style="height: 40px; width: 100%; flex-shrink: 0;"></div> </div>
+
+    <canvas id="gameCanvas" width="400" height="700"></canvas>
+    
+    <div class="game-ui" id="game-ui-p2">
+        <div class="cards-container" id="deck-p2"></div>
+        <div class="elixir-bar-container">
+            <div class="elixir-fill" id="elixir-bar-p2"></div>
+            <div class="elixir-text" id="elixir-text-p2">Эликсир: 5</div>
+        </div>
+    </div>
+
+    <div class="game-ui" id="game-ui-p1">
+        <div class="cards-container" id="deck-p1"></div>
+        <div class="elixir-bar-container">
+            <div class="elixir-fill" id="elixir-bar-p1"></div>
+            <div class="elixir-text" id="elixir-text-p1">Эликсир: 5</div>
+        </div>
+    </div>
+
+    <div id="toast">Лимит Гоблинов: 3!</div>
+
+    <div id="game-over" class="screen hidden" style="z-index: 200; background: rgba(0,0,0,0.9);">
+        <div id="winner-text" style="font-size: 2.5rem; margin-bottom: 10px; font-weight: 900; text-align: center;">Победа!</div>
+        <div id="trophy-result" style="font-size: 1.5rem; color: #f1c40f; margin-bottom: 30px; font-weight: bold;"></div>
+        <button class="btn" onclick="location.reload()">В Меню</button>
+    </div>
+</div>
+
+<script>
+    // --- ДАННЫЕ И СОХРАНЕНИЯ ---
+    let trophies = localStorage.getItem('clashTrophies') ? parseInt(localStorage.getItem('clashTrophies')) : 0;
+    let playerLevels = localStorage.getItem('clashLevels') ? JSON.parse(localStorage.getItem('clashLevels')) : {};
+    let playerDeck = localStorage.getItem('clashDeck') ? JSON.parse(localStorage.getItem('clashDeck')) : [0, 1, 2, 3, 4, 5]; 
+
+    // БАЗОВЫЕ ХАРАКТЕРИСТИКИ (1 уровень) - ТЕПЕРЬ 20 КАРТ!
+    const CARDS = [
+        // Старые 10 карт
+        { id: 0, name: "Рыцарь", cost: 3, hp: 150, dmg: 15, spd: 0.5, rng: 15, color: "#3498db", targetsBuilding: false },
+        { id: 1, name: "Танк", cost: 5, hp: 400, dmg: 10, spd: 0.25, rng: 15, color: "#2c3e50", targetsBuilding: false },
+        { id: 2, name: "Ассасин", cost: 4, hp: 80, dmg: 35, spd: 0.8, rng: 15, color: "#f1c40f", targetsBuilding: false },
+        { id: 3, name: "Лучник", cost: 3, hp: 60, dmg: 22, spd: 0.4, rng: 120, color: "#2ecc71", targetsBuilding: false, projectile: 'arrow' },
+        { id: 4, name: "Гигант", cost: 5, hp: 500, dmg: 25, spd: 0.2, rng: 20, color: "#8e44ad", targetsBuilding: true },
+        { id: 5, name: "Маг", cost: 4, hp: 70, dmg: 40, spd: 0.35, rng: 90, color: "#e74c3c", targetsBuilding: false, projectile: 'magic' },
+        { id: 6, name: "Бомба", cost: 3, hp: 40, dmg: 150, spd: 0.9, rng: 20, color: "#e67e22", targetsBuilding: false },
+        { id: 7, name: "Гоблин", cost: 1, hp: 45, dmg: 12, spd: 0.85, rng: 15, color: "#1abc9c", targetsBuilding: false, maxOnField: 3 },
+        { id: 8, name: "Варвар", cost: 4, hp: 220, dmg: 18, spd: 0.45, rng: 15, color: "#d35400", targetsBuilding: false },
+        { id: 9, name: "Скелеты", cost: 2, hp: 5, dmg: 10, spd: 0.5, rng: 15, color: "#ecf0f1", targetsBuilding: false, spawnCount: 3 },
+        
+        // НОВЫЕ 10 КАРТ
+        { id: 10, name: "Валькирия", cost: 4, hp: 200, dmg: 25, spd: 0.6, rng: 15, color: "#e84393", targetsBuilding: false },
+        { id: 11, name: "Мушкетер", cost: 4, hp: 90, dmg: 35, spd: 0.5, rng: 130, color: "#6c5ce7", targetsBuilding: false, projectile: 'arrow' },
+        { id: 12, name: "Ведьма", cost: 5, hp: 110, dmg: 20, spd: 0.5, rng: 90, color: "#8e44ad", targetsBuilding: false, projectile: 'magic' },
+        { id: 13, name: "Всадник", cost: 4, hp: 180, dmg: 20, spd: 1.2, rng: 20, color: "#d63031", targetsBuilding: true },
+        { id: 14, name: "Дракончик", cost: 4, hp: 150, dmg: 22, spd: 0.7, rng: 80, color: "#00b894", targetsBuilding: false, projectile: 'magic' },
+        { id: 15, name: "П.Е.К.К.А", cost: 7, hp: 220, dmg: 60, spd: 0.3, rng: 20, color: "#2d3436", targetsBuilding: false },
+        { id: 16, name: "Лед. Маг", cost: 3, hp: 80, dmg: 15, spd: 0.5, rng: 90, color: "#74b9ff", targetsBuilding: false, projectile: 'magic' },
+        { id: 17, name: "Мыши", cost: 4, hp: 10, dmg: 5, spd: 1, rng: 15, color: "#636e72", targetsBuilding: false, spawnCount: 5 },
+        { id: 18, name: "Принц", cost: 5, hp: 250, dmg: 40, spd: 1.1, rng: 20, color: "#ffeaa7", targetsBuilding: false },
+        { id: 19, name: "Голем", cost: 8, hp: 800, dmg: 30, spd: 0.15, rng: 20, color: "#a4b0be", targetsBuilding: true },
+        { id: 20, name: "Шмара Васильевна", cost: 1, hp: 1500, dmg: 130, spd: 1, rng: 20, color: "#a4b0be", targetsBuilding: true }
+    ];
+
+    // Инициализация уровней
+    CARDS.forEach(c => { if(!playerLevels[c.id]) playerLevels[c.id] = 1; });
+
+    document.getElementById('menu-trophies').innerText = trophies;
+    checkDeckReady();
+
+    function getStatValue(baseStat, level) {
+        return Math.floor(baseStat * Math.pow(1.1, level - 1));
+    }
+
+    // --- ЛОГИКА ЭКРАНА КОЛОДЫ ---
+    function openDeckScreen() {
+        document.getElementById('menu').classList.add('hidden');
+        document.getElementById('deck-screen').classList.remove('hidden');
+        renderDeckBuilder();
+    }
+    
+    function closeDeckScreen() {
+        document.getElementById('deck-screen').classList.add('hidden');
+        document.getElementById('menu').classList.remove('hidden');
+        document.getElementById('menu-trophies').innerText = trophies;
+        checkDeckReady();
+        localStorage.setItem('clashDeck', JSON.stringify(playerDeck));
+        localStorage.setItem('clashLevels', JSON.stringify(playerLevels));
+    }
+
+    function checkDeckReady() {
+        let ready = playerDeck.length === 6;
+        document.getElementById('btn-bot').disabled = !ready;
+        document.getElementById('btn-pvp').disabled = !ready;
+        document.getElementById('deck-warning').style.display = ready ? 'none' : 'block';
+    }
+
+    function renderDeckBuilder() {
+        document.getElementById('deck-count').innerText = playerDeck.length;
+        document.getElementById('deck-trophies').innerText = trophies;
+        const grid = document.getElementById('deck-grid');
+        grid.innerHTML = '';
+
+        CARDS.forEach(card => {
+            let level = playerLevels[card.id];
+            let costToUpgrade = level * 50;
+            let inDeck = playerDeck.includes(card.id);
+
+            let slot = document.createElement('div');
+            slot.className = `deck-slot ${inDeck ? 'in-deck' : ''}`;
+            slot.innerHTML = `
+                <div class="cost-badge">${card.cost}</div>
+                <div class="lvl-badge">Lvl ${level}</div>
+                <div class="deck-title">${card.name}</div>
+                <div style="font-size: 9px; margin-bottom: 5px;">Урон: ${getStatValue(card.dmg, level)}</div>
+                <button class="upgrade-btn" ${trophies < costToUpgrade ? 'disabled' : ''} onclick="upgradeCard(event, ${card.id}, ${costToUpgrade})">▲ ${costToUpgrade} 🏆</button>
+            `;
+            slot.onclick = () => toggleCardInDeck(card.id);
+            grid.appendChild(slot);
+        });
+    }
+
+    function toggleCardInDeck(id) {
+        if (playerDeck.includes(id)) {
+            playerDeck = playerDeck.filter(c => c !== id);
+        } else {
+            if (playerDeck.length < 6) playerDeck.push(id);
+        }
+        renderDeckBuilder();
+    }
+
+    function upgradeCard(event, id, cost) {
+        event.stopPropagation(); 
+        if (trophies >= cost) {
+            trophies -= cost;
+            playerLevels[id]++;
+            localStorage.setItem('clashTrophies', trophies);
+            renderDeckBuilder();
+        }
+    }
+
+
+    // --- ИГРОВОЙ ДВИЖОК ---
+    let canvas = document.getElementById('gameCanvas');
+    let ctx = canvas.getContext('2d');
+    
+    let units = [], towers = [], projectiles = [], particles = [];
+    let p1Mana = 5, enemyMana = 5;
+    let selectedP1Card = null, selectedP2Card = null;
+    let isGameOver = false;
+    let currentMode = 'bot';
+    let botDifficulty = 'normal';
+    let botDeck = [];
+
+    class Particle {
+        constructor(x, y, color, isExplosion = false) {
+            this.x = x; this.y = y; this.color = color;
+            let angle = Math.random() * Math.PI * 2;
+            let speed = isExplosion ? Math.random() * 3 + 1 : Math.random() * 1.5 + 0.5;
+            this.vx = Math.cos(angle) * speed; this.vy = Math.sin(angle) * speed;
+            this.life = 1.0; this.decay = isExplosion ? 0.02 : 0.04;
+            this.size = Math.random() * 3 + 2;
+        }
+        update() { this.x += this.vx; this.y += this.vy; this.life -= this.decay; }
+        draw(ctx) {
+            ctx.globalAlpha = Math.max(0, this.life);
+            ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
+            ctx.globalAlpha = 1.0;
+        }
+    }
+
+    function spawnParticles(x, y, color, amount, isExp = false) {
+        for(let i=0; i<amount; i++) particles.push(new Particle(x, y, color, isExp));
+    }
+
+    class Projectile {
+        constructor(startX, startY, target, dmg, type, color) {
+            this.x = startX; this.y = startY; this.target = target;
+            this.dmg = dmg; this.type = type; this.color = color;
+            this.spd = type === 'arrow' ? 4 : 3;
+        }
+        update() {
+            if (!this.target || this.target.hp <= 0) return true;
+            let dist = Math.hypot(this.target.x - this.x, this.target.y - this.y);
+            if (dist < this.spd + 10) {
+                this.target.hp -= this.dmg;
+                spawnParticles(this.target.x, this.target.y, this.color, 8);
+                return true;
+            }
+            let angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
+            this.x += Math.cos(angle) * this.spd; this.y += Math.sin(angle) * this.spd;
+            if (this.type === 'magic') spawnParticles(this.x, this.y, this.color, 1, false); 
+            return false;
+        }
+        draw(ctx) {
+            let angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
+            if (this.type === 'arrow') {
+                ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(this.x - Math.cos(angle)*12, this.y - Math.sin(angle)*12);
+                ctx.strokeStyle = '#ecf0f1'; ctx.lineWidth = 2; ctx.stroke();
+            } else if (this.type === 'magic') {
+                ctx.beginPath(); ctx.arc(this.x, this.y, 5, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.fill();
+            } else if (this.type === 'tower') {
+                ctx.beginPath(); ctx.arc(this.x, this.y, 4, 0, Math.PI * 2); ctx.fillStyle = '#f1c40f'; ctx.fill();
+            }
+        }
+    }
+
+    class Tower {
+        constructor(isPlayer, isMain, x, y, level) {
+            this.isPlayer = isPlayer; this.isMain = isMain;
+            this.max_hp = getStatValue(isMain ? 1200 : 600, level);
+            this.hp = this.max_hp; this.x = x; this.y = y;
+            this.size = isMain ? 50 : 35;
+            this.dmg = getStatValue(isMain ? 15 : 11, level); 
+            this.rng = 160; this.cooldown = 0;
+            this.color = isPlayer ? "#2980b9" : "#c0392b";
+        }
+        draw(ctx) {
+            ctx.fillStyle = this.color; ctx.fillRect(this.x - this.size/2, this.y - this.size/2, this.size, this.size);
+            if(this.isMain) { ctx.fillStyle = "#f1c40f"; ctx.fillRect(this.x - 10, this.y - this.size/2 - 10, 20, 10); }
+            let hpY = this.isPlayer ? this.y - this.size/2 - 15 : this.y + this.size/2 + 5;
+            ctx.fillStyle = "black"; ctx.fillRect(this.x - 25, hpY, 50, 6);
+            ctx.fillStyle = "#2ecc71"; ctx.fillRect(this.x - 25, hpY, 50 * (Math.max(0, this.hp) / this.max_hp), 6);
+        }
+    }
+
+    class Unit {
+        constructor(isPlayer, card_id, spawnX, spawnY, level) {
+            this.isPlayer = isPlayer; this.card_id = card_id;
+            let stats = CARDS.find(c => c.id === card_id);
+            this.name = stats.name;
+            this.max_hp = getStatValue(stats.hp, level);
+            this.hp = this.max_hp;
+            this.dmg = getStatValue(stats.dmg, level);
+            this.spd = stats.spd; this.rng = stats.rng;
+            this.color = stats.color; this.targetsBuilding = stats.targetsBuilding;
+            this.projectileType = stats.projectile || null;
+            this.x = spawnX; this.y = spawnY; this.cooldown = 0; this.radius = 12;
+            this.level = level;
+        }
+        draw(ctx) {
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.fillStyle = this.color; ctx.fill();
+            ctx.lineWidth = 2; ctx.strokeStyle = this.isPlayer ? "#fff" : "#000"; ctx.stroke();
+            ctx.fillStyle = "red"; ctx.fillRect(this.x - 10, this.y - 18, 20, 4);
+            ctx.fillStyle = "#2ecc71"; ctx.fillRect(this.x - 10, this.y - 18, 20 * (Math.max(0, this.hp) / this.max_hp), 4);
+        }
+    }
+
+    function showToast(msg) {
+        let t = document.getElementById('toast');
+        t.innerText = msg; t.style.display = 'block';
+        setTimeout(() => t.style.display = 'none', 1500);
+    }
+
+    function spawnUnitGroup(isPlayer, card_id, x, y) {
+        let stats = CARDS.find(c => c.id === card_id);
+        
+        if (stats.maxOnField) {
+            let currentCount = units.filter(u => u.isPlayer === isPlayer && u.card_id === card_id).length;
+            if (currentCount >= stats.maxOnField) {
+                if(isPlayer) showToast(`Лимит: ${stats.maxOnField}!`);
+                return false; 
+            }
+        }
+
+        let count = stats.spawnCount || 1;
+        let level = isPlayer ? playerLevels[card_id] : getBotLevel();
+        
+        for(let i=0; i<count; i++) {
+            let ox = x + (count > 1 ? (Math.random()*30 - 15) : 0);
+            let oy = y + (count > 1 ? (Math.random()*30 - 15) : 0);
+            units.push(new Unit(isPlayer, card_id, ox, oy, level));
+        }
+        return true; 
+    }
+
+    function getAvgPlayerLevel() {
+        let sum = playerDeck.reduce((acc, id) => acc + playerLevels[id], 0);
+        return Math.floor(sum / 6);
+    }
+
+    function getBotLevel() {
+        let avg = getAvgPlayerLevel();
+        if (botDifficulty === 'easy') return Math.max(1, avg - 1);
+        if (botDifficulty === 'hard') return avg + 1;
+        return avg;
+    }
+
+    function startGame(mode) {
+        if(playerDeck.length !== 6) return;
+        currentMode = mode;
+        botDifficulty = document.getElementById('bot-diff').value;
+        
+        document.getElementById('menu').classList.add('hidden');
+        document.getElementById('game-ui-p1').style.display = 'flex';
+        if(mode === 'pvp') document.getElementById('game-ui-p2').style.display = 'flex';
+        
+        // Генерация колоды бота
+        botDeck = [];
+        let tempCards = [...CARDS];
+        for(let i=0; i<6; i++) {
+            let idx = Math.floor(Math.random() * tempCards.length);
+            botDeck.push(tempCards[idx].id);
+            tempCards.splice(idx, 1);
+        }
+        
+        let avgLvl = getAvgPlayerLevel();
+        let botLvl = getBotLevel();
+
+        const pMainY = canvas.height - 180; const pSideY = canvas.height - 240;
+        const bMainY = 160; const bSideY = 220; 
+
+        towers = [
+            new Tower(false, true, canvas.width / 2, bMainY, botLvl),
+            new Tower(false, false, 80, bSideY, botLvl),
+            new Tower(false, false, canvas.width - 80, bSideY, botLvl),
+            new Tower(true, true, canvas.width / 2, pMainY, avgLvl),
+            new Tower(true, false, 80, pSideY, avgLvl),
+            new Tower(true, false, canvas.width - 80, pSideY, avgLvl)
+        ];
+
+        units = []; projectiles = []; particles = [];
+        p1Mana = 5; enemyMana = 5; isGameOver = false;
+
+        renderActiveDeck('p1', playerDeck);
+        if(mode === 'pvp') renderActiveDeck('p2', playerDeck); 
+        
+        setupInput();
+        requestAnimationFrame(gameLoop);
+    }
+
+    function renderActiveDeck(playerPrefix, deckArray) {
+        const container = document.getElementById(`deck-${playerPrefix}`);
+        container.innerHTML = '';
+        deckArray.forEach(id => {
+            let card = CARDS.find(c => c.id === id);
+            let lvl = playerLevels[id]; 
+            const div = document.createElement('div');
+            div.className = 'card';
+            div.id = `${playerPrefix}-card-${card.id}`;
+            div.innerHTML = `<div class="card-cost">${card.cost}</div><div class="card-lvl">Lvl ${lvl}</div>${card.name}`;
+            div.onclick = () => {
+                let mana = playerPrefix === 'p1' ? p1Mana : enemyMana;
+                if (mana >= card.cost) {
+                    if (playerPrefix === 'p1') selectedP1Card = card.id;
+                    else selectedP2Card = card.id;
+                    updateUI();
+                }
+            };
+            container.appendChild(div);
+        });
+    }
+
+    function updateUI() {
+        document.getElementById('elixir-bar-p1').style.width = `${(p1Mana / 10) * 100}%`;
+        document.getElementById('elixir-text-p1').innerText = `Эликсир: ${Math.floor(p1Mana)}`;
+        playerDeck.forEach(id => {
+            let cost = CARDS.find(c=>c.id === id).cost;
+            let el = document.getElementById(`p1-card-${id}`);
+            if(el) {
+                if (p1Mana < cost) el.classList.add('disabled'); else el.classList.remove('disabled');
+                if (selectedP1Card === id) el.classList.add('selected'); else el.classList.remove('selected');
+            }
+        });
+
+        if(currentMode === 'pvp') {
+            document.getElementById('elixir-bar-p2').style.width = `${(enemyMana / 10) * 100}%`;
+            document.getElementById('elixir-text-p2').innerText = `Эликсир: ${Math.floor(enemyMana)}`;
+            playerDeck.forEach(id => {
+                let cost = CARDS.find(c=>c.id === id).cost;
+                let el = document.getElementById(`p2-card-${id}`);
+                if(el) {
+                    if (enemyMana < cost) el.classList.add('disabled'); else el.classList.remove('disabled');
+                    if (selectedP2Card === id) el.classList.add('selected'); else el.classList.remove('selected');
+                }
+            });
+        }
+    }
+
+    function setupInput() {
+        canvas.onmousedown = (e) => {
+            if (isGameOver) return;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width; const scaleY = canvas.height / rect.height;
+            const mouseX = (e.clientX - rect.left) * scaleX; const mouseY = (e.clientY - rect.top) * scaleY;
+
+            if (mouseY > canvas.height / 2 + 20 && selectedP1Card !== null) {
+                let cost = CARDS.find(c => c.id === selectedP1Card).cost;
+                if (p1Mana >= cost) {
+                    if (spawnUnitGroup(true, selectedP1Card, mouseX, mouseY)) {
+                        p1Mana -= cost;
+                        selectedP1Card = null;
+                        updateUI();
+                    }
+                }
+            }
+
+            if (currentMode === 'pvp' && mouseY < canvas.height / 2 - 20 && selectedP2Card !== null) {
+                let cost = CARDS.find(c => c.id === selectedP2Card).cost;
+                if (enemyMana >= cost) {
+                    if(spawnUnitGroup(false, selectedP2Card, mouseX, mouseY)){
+                        enemyMana -= cost;
+                        selectedP2Card = null;
+                        updateUI();
+                    }
+                }
+            }
+        };
+    }
+
+    function gameLoop() {
+        if (isGameOver) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const riverY = canvas.height / 2;
+        ctx.fillStyle = "#2980b9"; ctx.fillRect(0, riverY - 20, canvas.width, 40);
+        ctx.fillStyle = "#d35400"; ctx.fillRect(60, riverY - 20, 40, 40); ctx.fillRect(canvas.width - 100, riverY - 20, 40, 40);
+
+        if (p1Mana < 10) p1Mana += 0.006; 
+        if (currentMode === 'bot') {
+            let botSpeed = botDifficulty === 'easy' ? 0.003 : (botDifficulty === 'hard' ? 0.008 : 0.005);
+            if (enemyMana < 10) enemyMana += botSpeed; 
+            botAI();
+        } else {
+            if (enemyMana < 10) enemyMana += 0.006; 
+        }
+        
+        updateUI();
+
+        let pMainAlive = false; let bMainAlive = false;
+
+        for (let i = towers.length - 1; i >= 0; i--) {
+            let t = towers[i];
+            if (t.hp <= 0) {
+                spawnParticles(t.x, t.y, t.color, 50, true);
+                towers.splice(i, 1);
+            } else {
+                t.draw(ctx);
+                if (t.isMain) { if (t.isPlayer) pMainAlive = true; else bMainAlive = true; }
+
+                t.cooldown--;
+                if (t.cooldown <= 0) {
+                    let target = null; let minDist = Infinity;
+                    units.forEach(enemy => {
+                        if (enemy.isPlayer !== t.isPlayer) {
+                            let dist = Math.hypot(t.x - enemy.x, t.y - enemy.y);
+                            if (dist < minDist && dist <= t.rng) { minDist = dist; target = enemy; }
+                        }
+                    });
+                    if (target) {
+                        projectiles.push(new Projectile(t.x, t.y, target, t.dmg, 'tower', '#f1c40f'));
+                        t.cooldown = 70;
+                    }
+                }
+            }
+        }
+
+        if (!pMainAlive || !bMainAlive) {
+            isGameOver = true;
+            document.getElementById('game-over').classList.remove('hidden');
+            let text = document.getElementById('winner-text');
+            let trText = document.getElementById('trophy-result');
+            
+            if (!bMainAlive) { 
+                text.innerHTML = currentMode === 'pvp' ? "🏆 ИГРОК 1 ПОБЕДИЛ!" : "🏆 ТЫ РАЗНЕС<br>БАЗУ БОТА!";
+                text.style.color = "#2ecc71";
+                if(currentMode === 'bot') { 
+                    let reward = botDifficulty === 'hard' ? 45 : (botDifficulty === 'easy' ? 15 : 30);
+                    trophies += reward; trText.innerText = `+${reward} Кубков`; 
+                }
+            } else { 
+                text.innerHTML = currentMode === 'pvp' ? "🔥 ИГРОК 2 ПОБЕДИЛ!" : "💀 БОТ СНЕС<br>ТВОЮ БАЗУ";
+                text.style.color = "#e74c3c";
+                if(currentMode === 'bot') { trophies = Math.max(0, trophies - 20); trText.innerText = "-20 Кубков"; }
+            }
+            localStorage.setItem('clashTrophies', trophies);
+            return;
+        }
+
+        for (let i = units.length - 1; i >= 0; i--) {
+            let u = units[i];
+            if (u.hp <= 0) { 
+                spawnParticles(u.x, u.y, u.color, 30, true); 
+                units.splice(i, 1); continue; 
+            }
+            u.cooldown--;
+
+            let target = null; let minDist = Infinity;
+
+            if (!u.targetsBuilding) {
+                units.forEach(enemy => {
+                    if (enemy.isPlayer !== u.isPlayer) {
+                        let dist = Math.hypot(u.x - enemy.x, u.y - enemy.y);
+                        if (dist < minDist) { minDist = dist; target = enemy; }
+                    }
+                });
+            }
+
+            towers.forEach(t => {
+                if (t.isPlayer !== u.isPlayer) {
+                    let dist = Math.hypot(u.x - t.x, u.y - t.y) - t.size/2; 
+                    if (dist < minDist) { minDist = dist; target = t; }
+                }
+            });
+
+            if (target) {
+                if (minDist <= u.rng) {
+                    if (u.cooldown <= 0) {
+                        if (u.projectileType) {
+                            projectiles.push(new Projectile(u.x, u.y, target, u.dmg, u.projectileType, u.color));
+                        } else {
+                            target.hp -= u.dmg;
+                            spawnParticles(target.x, target.y, u.color, 5); 
+                            if (u.name === "Бомба") u.hp = 0; 
+                        }
+                        u.cooldown = 60;
+                    }
+                } else {
+                    let crossesRiver = (u.y > riverY && target.y < riverY) || (u.y < riverY && target.y > riverY);
+                    if (crossesRiver) {
+                        let lB = 80; let rB = canvas.width - 80;
+                        let destX = Math.abs(u.x - lB) < Math.abs(u.x - rB) ? lB : rB;
+                        if (Math.abs(u.x - destX) < 20) {
+                            u.y += (target.y > u.y) ? u.spd : -u.spd;
+                        } else {
+                            let approachY = (u.y > riverY) ? riverY + 20 : riverY - 20;
+                            let angle = Math.atan2(approachY - u.y, destX - u.x);
+                            u.x += Math.cos(angle) * u.spd; u.y += Math.sin(angle) * u.spd;
+                        }
+                    } else {
+                        let angle = Math.atan2(target.y - u.y, target.x - u.x);
+                        u.x += Math.cos(angle) * u.spd; u.y += Math.sin(angle) * u.spd;
+                    }
+                }
+            }
+            u.draw(ctx);
+        }
+
+        for (let i = projectiles.length - 1; i >= 0; i--) {
+            if (projectiles[i].update()) projectiles.splice(i, 1); else projectiles[i].draw(ctx);
+        }
+
+        for (let i = particles.length - 1; i >= 0; i--) {
+            particles[i].update();
+            if (particles[i].life <= 0) particles.splice(i, 1); else particles[i].draw(ctx);
+        }
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    function botAI() {
+        let thinkChance = botDifficulty === 'easy' ? 0.005 : (botDifficulty === 'hard' ? 0.03 : 0.015);
+        
+        if (enemyMana >= 2 && Math.random() < thinkChance) {
+            let playerUnits = units.filter(u => u.isPlayer);
+            let spawnX = canvas.width / 2;
+            let spawnY = 240; 
+            
+            let affordable = botDeck.filter(id => CARDS.find(c => c.id === id).cost <= enemyMana);
+            if (affordable.length === 0) return;
+
+            if (playerUnits.length > 0) {
+                let threat = playerUnits.reduce((prev, curr) => (curr.y < prev.y) ? curr : prev);
+                spawnX = threat.x;
+                let cardToPlay = affordable[Math.floor(Math.random() * affordable.length)];
+                
+                let cost = CARDS.find(c => c.id === cardToPlay).cost;
+                if(spawnUnitGroup(false, cardToPlay, spawnX, spawnY)) {
+                    enemyMana -= cost;
+                }
+            } else if (enemyMana >= 8) { 
+                let cardToPlay = affordable[Math.floor(Math.random() * affordable.length)];
+                let cost = CARDS.find(c => c.id === cardToPlay).cost;
+                spawnX = Math.random() > 0.5 ? 80 : canvas.width - 80; 
+                if(spawnUnitGroup(false, cardToPlay, spawnX, spawnY)){
+                    enemyMana -= cost;
+                }
+            }
+        }
+    }
+</script>
+</body>
+</html>
